@@ -597,7 +597,11 @@ public class CreateIsoMessage  {
         String type = config.get("type").asText();
         String validValue = getSampleDataFromJsonPath(jsonPath);
 
-        System.out.println("\nTesting field " + fieldNumber + " (" + jsonPath + ")");
+        System.out.println("\n========================================");
+        System.out.println("Testing field " + fieldNumber + " (" + jsonPath + ")");
+        System.out.println("Field type: " + type);
+        System.out.println("Original valid value: " + validValue);
+        System.out.println("========================================");
 
         // Test each invalid category
         for (String testCategory : TEST_CATEGORIES) {
@@ -607,28 +611,59 @@ public class CreateIsoMessage  {
             String description = config.has(testCategory + "_description") ? 
                 config.get(testCategory + "_description").asText() : testCategory;
 
-            System.out.println("  Testing " + testCategory + ": " + description);
+            System.out.println("\n-----------------------------------------");
+            System.out.println("Testing category: " + testCategory);
+            System.out.println("Description: " + description);
+            System.out.println("Invalid value to test: " + invalidValue);
 
             try {
                 // Apply invalid value
                 applyBddUpdateExtended(jsonPath, invalidValue, type);
                 String invalidIsoMessage = buildIsoMessage();
+                
+                // Log the message being sent
+                System.out.println("\nSending ISO message with invalid value:");
+                System.out.println("ISO Message: " + invalidIsoMessage);
+                
                 String errorResponse = sendIsoMessageToParser(invalidIsoMessage);
-                System.out.println("    Invalid test: " + 
-                    (errorResponse.contains("Error") ? "✓ Got expected error" : "✗ Missing expected error"));
+                System.out.println("Parser Response: " + errorResponse);
+                
+                boolean hasError = errorResponse.contains("Error");
+                System.out.println("Invalid test result: " + 
+                    (hasError ? "✓ Got expected error" : "✗ Missing expected error"));
+                
+                if (!hasError) {
+                    System.out.println("WARNING: Expected error response for invalid value but got success!");
+                }
 
                 // Restore valid value
+                System.out.println("\nRestoring valid value: " + validValue);
                 applyBddUpdateExtended(jsonPath, validValue, type);
                 String restoredIsoMessage = buildIsoMessage();
+                
+                System.out.println("Sending restored ISO message:");
+                System.out.println("ISO Message: " + restoredIsoMessage);
+                
                 String restoredResponse = sendIsoMessageToParser(restoredIsoMessage);
-                System.out.println("    Restore test: " + 
-                    (restoredResponse.contains("Error") ? "✗ Failed to restore" : "✓ Successfully restored"));
+                System.out.println("Parser Response: " + restoredResponse);
+                
+                boolean restoredSuccessfully = !restoredResponse.contains("Error");
+                System.out.println("Restore test result: " + 
+                    (restoredSuccessfully ? "✓ Successfully restored" : "✗ Failed to restore"));
+
+                if (!restoredSuccessfully) {
+                    System.out.println("WARNING: Failed to restore to valid state!");
+                }
 
             } catch (Exception e) {
-                System.out.println("    ✗ Test failed: " + e.getMessage());
+                System.out.println("\n✗ Test failed with exception:");
+                e.printStackTrace();
                 // Restore valid value even if test fails
+                System.out.println("\nAttempting to restore valid value after error...");
                 applyBddUpdateExtended(jsonPath, validValue, type);
             }
+            System.out.println("-----------------------------------------");
         }
+        System.out.println("========================================\n");
     }
 }
