@@ -626,6 +626,8 @@ public class CreateIsoMessage  {
 
             } catch (Exception e) {
                 System.out.println("    ✗ Test failed: " + e.getMessage());
+                // Restore valid value even if test fails
+                applyBddUpdateExtended(jsonPath, validValue, type);
             }
         }
     }
