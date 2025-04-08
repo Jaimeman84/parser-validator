@@ -580,4 +580,53 @@ public class CreateIsoMessage  {
     public static List<String> getConfiguredFields() {
         return new ArrayList<>(fieldConfig.keySet());
     }
+
+    /**
+     * Validates a field with all applicable invalid test categories
+     * @param jsonPath The name of the field to test
+     * @throws IOException if there's an error sending messages
+     */
+    public static void validateFieldWithInvalidData(String jsonPath) throws IOException {
+        String fieldNumber = getFieldNumberFromJsonPath(jsonPath);
+        if (fieldNumber == null) {
+            System.out.println("Warning: No field found for JSONPath " + jsonPath);
+            return;
+        }
+
+        JsonNode config = fieldConfig.get(fieldNumber);
+        String type = config.get("type").asText();
+        String validValue = getSampleDataFromJsonPath(jsonPath);
+
+        System.out.println("\nTesting field " + fieldNumber + " (" + jsonPath + ")");
+
+        // Test each invalid category
+        for (String testCategory : TEST_CATEGORIES) {
+            if (!config.has(testCategory)) continue;
+
+            String invalidValue = config.get(testCategory).asText();
+            String description = config.has(testCategory + "_description") ? 
+                config.get(testCategory + "_description").asText() : testCategory;
+
+            System.out.println("  Testing " + testCategory + ": " + description);
+
+            try {
+                // Apply invalid value
+                applyBddUpdateExtended(jsonPath, invalidValue, type);
+                String invalidIsoMessage = buildIsoMessage();
+                String errorResponse = sendIsoMessageToParser(invalidIsoMessage);
+                System.out.println("    Invalid test: " + 
+                    (errorResponse.contains("Error") ? "✓ Got expected error" : "✗ Missing expected error"));
+
+                // Restore valid value
+                applyBddUpdateExtended(jsonPath, validValue, type);
+                String restoredIsoMessage = buildIsoMessage();
+                String restoredResponse = sendIsoMessageToParser(restoredIsoMessage);
+                System.out.println("    Restore test: " + 
+                    (restoredResponse.contains("Error") ? "✗ Failed to restore" : "✓ Successfully restored"));
+
+            } catch (Exception e) {
+                System.out.println("    ✗ Test failed: " + e.getMessage());
+            }
+        }
+    }
 }
