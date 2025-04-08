@@ -1,0 +1,382 @@
+[
+    {
+        "dataElementId": "1",
+        "type": "BITMAP",
+        "value": "2000004257FE817F"
+    },
+    {
+        "dataElementId": "2",
+        "type": "LLVAR",
+        "value": "5314451120000000"
+    },
+    {
+        "dataElementId": "3",
+        "type": "NUMERIC",
+        "value": "000000"
+    },
+    {
+        "dataElementId": "4",
+        "type": "NUMERIC",
+        "value": "000000020000"
+    },
+    {
+        "dataElementId": "5",
+        "type": "NUMERIC",
+        "value": "000000030000"
+    },
+    {
+        "dataElementId": "7",
+        "type": "NUMERIC",
+        "value": "0329150405"
+    },
+    {
+        "dataElementId": "8",
+        "type": "NUMERIC",
+        "value": "01000000"
+    },
+    {
+        "dataElementId": "9",
+        "type": "NUMERIC",
+        "value": "02000000"
+    },
+    {
+        "dataElementId": "10",
+        "type": "NUMERIC",
+        "value": "03000000"
+    },
+    {
+        "dataElementId": "11",
+        "type": "NUMERIC",
+        "value": "130644"
+    },
+    {
+        "dataElementId": "12",
+        "type": "NUMERIC",
+        "value": "150405"
+    },
+    {
+        "dataElementId": "13",
+        "type": "NUMERIC",
+        "value": "0329"
+    },
+    {
+        "dataElementId": "14",
+        "type": "NUMERIC",
+        "value": "0231"
+    },
+    {
+        "dataElementId": "15",
+        "type": "NUMERIC",
+        "value": "0331"
+    },
+    {
+        "dataElementId": "17",
+        "type": "NUMERIC",
+        "value": "0431"
+    },
+    {
+        "dataElementId": "18",
+        "type": "NUMERIC",
+        "value": "1313"
+    },
+    {
+        "dataElementId": "19",
+        "type": "NUMERIC",
+        "value": "001"
+    },
+    {
+        "dataElementId": "21",
+        "type": "NUMERIC",
+        "value": "001"
+    },
+    {
+        "dataElementId": "22",
+        "type": "NUMERIC",
+        "value": "002"
+    },
+    {
+        "dataElementId": "23",
+        "type": "NUMERIC",
+        "value": "022"
+    },
+    {
+        "dataElementId": "25",
+        "type": "NUMERIC",
+        "value": "02"
+    },
+    {
+        "dataElementId": "26",
+        "type": "NUMERIC",
+        "value": "11"
+    },
+    {
+        "dataElementId": "27",
+        "type": "NUMERIC",
+        "value": "1"
+    },
+    {
+        "dataElementId": "28",
+        "type": "AMOUNT",
+        "value": "C00000050"
+    },
+    {
+        "dataElementId": "29",
+        "type": "AMOUNT",
+        "value": "D00000060"
+    },
+    {
+        "dataElementId": "30",
+        "type": "AMOUNT",
+        "value": "C00000070"
+    },
+    {
+        "dataElementId": "31",
+        "type": "AMOUNT",
+        "value": "C00000070"
+    },
+    {
+        "dataElementId": "32",
+        "type": "LLVAR",
+        "value": "21089211169"
+    },
+    {
+        "dataElementId": "33",
+        "type": "LLVAR",
+        "value": "09111111111"
+    },
+    {
+        "dataElementId": "35",
+        "type": "LLVAR",
+        "value": ";5314451120000000=2812221711760?"
+    },
+    {
+        "dataElementId": "37",
+        "type": "CHAR",
+        "value": "021700130644"
+    },
+    {
+        "dataElementId": "38",
+        "type": "CHAR",
+        "value": "AIR111"
+    },
+    {
+        "dataElementId": "39",
+        "type": "CHAR",
+        "value": "R1"
+    },
+    {
+        "dataElementId": "40",
+        "type": "CHAR",
+        "value": "SR1"
+    },
+    {
+        "dataElementId": "41",
+        "type": "CHAR",
+        "value": "ey5A3etE"
+    },
+    {
+        "dataElementId": "42",
+        "type": "CHAR",
+        "value": "ul3xfY8LZ1jCJdv"
+    },
+    {
+        "dataElementId": "43",
+        "type": "CHAR",
+        "value": "12345MainTownStreetRoadNewYork123456NYUS"
+    },
+    {
+        "dataElementId": "45",
+        "type": "LLVAR",
+        "value": "12T1D525MAX076"
+    },
+    {
+        "dataElementId": "46",
+        "type": "LLLVAR",
+        "value": "013ABC1235MAX088"
+    },
+    {
+        "dataElementId": "47",
+        "type": "LLLVAR",
+        "value": "020ABC12345678910MAX100"
+    },
+    {
+        "dataElementId": "48",
+        "type": "LLLVAR",
+        "value": "13ABC1235MAX025"
+    },
+    {
+        "dataElementId": "49",
+        "type": "AMOUNT",
+        "value": "USD"
+    },
+    {
+        "dataElementId": "50",
+        "type": "NUMERIC",
+        "value": "001"
+    },
+    {
+        "dataElementId": "51",
+        "type": "NUMERIC",
+        "value": "002"
+    },
+    {
+        "dataElementId": "54",
+        "type": "LLLVAR",
+        "value": "020ABC12345678910MAX240"
+    },
+    {
+        "dataElementId": "55",
+        "type": "LLLVAR",
+        "value": "110101110001101111100101111100011111010110100101111100110111000001000111101001101101100111101000110111110111100110100110000101101101000011000110010011111100011000001100010001010010001000101010101001111010100000011101101001110000100011000110101100100111101"
+    },
+    {
+        "dataElementId": "57",
+        "type": "LLLVAR",
+        "value": "200"
+    },
+    {
+        "dataElementId": "58",
+        "type": "LLLVAR",
+        "value": "010ABC11MAX30"
+    },
+    {
+        "dataElementId": "59",
+        "type": "LLLVAR",
+        "value": "012NPOSGDMAX017"
+    },
+    {
+        "dataElementId": "60",
+        "type": "LLLVAR",
+        "value": "6MAX06"
+    },
+    {
+        "dataElementId": "61",
+        "type": "LLLVAR",
+        "value": "020ABC12345678910MAX100"
+    },
+    {
+        "dataElementId": "63",
+        "type": "LLLVAR",
+        "value": "020ABC12345678910MAX050"
+    },
+    {
+        "dataElementId": "67",
+        "type": "NUMERIC",
+        "value": "01"
+    },
+    {
+        "dataElementId": "90",
+        "type": "NUMERIC",
+        "value": "111111111111111111111111111111111111111142"
+    },
+    {
+        "dataElementId": "95",
+        "type": "AMOUNT",
+        "value": "111111111111111111111111111111111111111142"
+    },
+    {
+        "dataElementId": "98",
+        "type": "CHAR",
+        "value": "ABCJOHNSMIT09213020320211"
+    },
+    {
+        "dataElementId": "100",
+        "type": "LLVAR",
+        "value": "11111111111"
+    },
+    {
+        "dataElementId": "102",
+        "type": "LLVAR",
+        "value": "013AAI11111MAX28"
+    },
+    {
+        "dataElementId": "103",
+        "type": "LLVAR",
+        "value": "013AAI21111MAX28"
+    },
+    {
+        "dataElementId": "104",
+        "type": "LLLVAR",
+        "value": "013TDI2111MAX100"
+    },
+    {
+        "dataElementId": "105",
+        "type": "LLLVAR",
+        "value": "026LPD11111111111111111MAX255"
+    },
+    {
+        "dataElementId": "106",
+        "type": "LLLVAR",
+        "value": "026LPD21111111111111111MAX255"
+    },
+    {
+        "dataElementId": "107",
+        "type": "LLLVAR",
+        "value": "026LPD31111111111111111MAX255"
+    },
+    {
+        "dataElementId": "108",
+        "type": "LLLVAR",
+        "value": "026LPD41111111111111111MAX255"
+    },
+    {
+        "dataElementId": "109",
+        "type": "LLLVAR",
+        "value": "026SD111111111111111111MAX255"
+    },
+    {
+        "dataElementId": "110",
+        "type": "LLLVAR",
+        "value": "026RD111111111111111111MAX255"
+    },
+    {
+        "dataElementId": "111",
+        "type": "LLLVAR",
+        "value": "026ADPA1111111111111111MAX255"
+    },
+    {
+        "dataElementId": "113",
+        "type": "LLLVAR",
+        "value": "11111111111"
+    },
+    {
+        "dataElementId": "120",
+        "type": "LLLVAR",
+        "value": "C11111"
+    },
+    {
+        "dataElementId": "122",
+        "type": "LLLVAR",
+        "value": "07ABI11MAX1"
+    },
+    {
+        "dataElementId": "123",
+        "type": "LLLVAR",
+        "value": "026TDA11111111111111111MAX050"
+    },
+    {
+        "dataElementId": "124",
+        "type": "LLLVAR",
+        "value": "026TDA11111111111111111MAX255"
+    },
+    {
+        "dataElementId": "125",
+        "type": "LLLVAR",
+        "value": "026TDI11111111111111111MAX255"
+    },
+    {
+        "dataElementId": "126",
+        "type": "LLLVAR",
+        "value": "026TDI11111111111111111MAX100"
+    },
+    {
+        "dataElementId": "127",
+        "type": "LLLVAR",
+        "value": "AB123"
+    },
+    {
+        "dataElementId": "128",
+        "type": "BINARY",
+        "value": "1000001000111010"
+    }
+]
