@@ -27,7 +27,7 @@ public class CreateIsoMessage  {
     private static boolean[] primaryBitmap = new boolean[64];
     private static boolean[] secondaryBitmap = new boolean[64];
     private static Set<String> manuallyUpdatedFields = new HashSet<>(); // Tracks modified fields
-    private static final String PARSER_URL = "[add url here]"; // Replace with actual URL
+    private static final String PARSER_URL = "enter url here"; // Replace with actual URL
     private static final List<String> TEST_CATEGORIES = List.of(
             "invalid_type_value",
             "invalid_special_chars_value",
@@ -537,5 +537,47 @@ public class CreateIsoMessage  {
             this.description = "";
             this.errorMessage = "";
         }
+    }
+
+    /**
+     * Resets the ISO message state to prepare for a new message
+     */
+    public static void resetState() {
+        isoFields.clear();
+        primaryBitmap = new boolean[64];
+        secondaryBitmap = new boolean[64];
+        manuallyUpdatedFields.clear();
+    }
+
+    /**
+     * Gets the current value of a field
+     * @param fieldNumber the field number to get
+     * @return the current value or null if not set
+     */
+    public static String getFieldValue(String fieldNumber) {
+        try {
+            int fieldNum = Integer.parseInt(fieldNumber);
+            return isoFields.get(fieldNum);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Gets the field name from the configuration
+     * @param fieldNumber the field number to look up
+     * @return the field name or null if not found
+     */
+    public static String getFieldName(String fieldNumber) {
+        JsonNode config = fieldConfig.get(fieldNumber);
+        return config != null && config.has("name") ? config.get("name").asText() : null;
+    }
+
+    /**
+     * Gets all configured field numbers
+     * @return list of field numbers that are configured
+     */
+    public static List<String> getConfiguredFields() {
+        return new ArrayList<>(fieldConfig.keySet());
     }
 }

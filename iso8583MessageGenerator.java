@@ -3,19 +3,16 @@ import io.cucumber.datatable.DataTable;
 import io.cucumber.java.en.When;
 import java.io.IOException;
 import java.util.*;
-import utilities.CreateIsoMessage;
-import utilities.CreateIsoMessage.TestResult;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import static utilities.CreateIsoMessage.*;
 
 public class ISO8583MessageGenerator {
-    private CreateIsoMessage isoMessage;
-
-    public ISO8583MessageGenerator() {
-        this.isoMessage = new CreateIsoMessage();
-    }
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @When("^I update iso file \"([^\"]*)\" validate and send the request$")
     public void i_update_iso_file_validate_and_send_the_request(String requestName, DataTable dt) throws IOException {
-        CreateIsoMessage.loadConfig("iso_config_extended_flattened.json");
+        loadConfig("iso_config_extended_flattened.json");
 
         List<Map<String, String>> rows = dt.asMaps(String.class, String.class);
 
@@ -24,54 +21,115 @@ public class ISO8583MessageGenerator {
             String value = row.get("Value");
             String dataType = row.get("DataType");
 
-            CreateIsoMessage.applyBddUpdateExtended(jsonPath, value, dataType);
+            applyBddUpdateExtended(jsonPath, value, dataType);
         }
 
         // Generate default fields, ensuring Primary Bitmap is correct
-        CreateIsoMessage.generateDefaultFields();
+        generateDefaultFields();
 
         // Build ISO message & JSON output
-        String isoMessage = CreateIsoMessage.buildIsoMessage();
-        String jsonOutput = CreateIsoMessage.buildJsonMessage();
+        String isoMessage = buildIsoMessage();
+        String jsonOutput = buildJsonMessage();
 
-        CreateIsoMessage.sendIsoMessageToParser(isoMessage);
+        String response = sendIsoMessageToParser(isoMessage);
         // Print Outputs
         System.out.println("Generated ISO8583 Message:");
         System.out.println(isoMessage);
         System.out.println("\nGenerated JSON Output:");
         System.out.println(jsonOutput);
+        System.out.println("\nParser Response:");
+        System.out.println(response);
     }
 
     @When("^I validate all fields with invalid data$")
     public void validateAllFieldsWithInvalidData() throws IOException {
-        Map<String, List<TestResult>> results = isoMessage.validateAllFieldsWithInvalidData();
+        // Load configuration
+        loadConfig("iso_config_extended_flattened.json");
+        JsonNode config = objectMapper.readTree(Files.readString(Path.of("iso_config_extended_flattened.json")));
         
-        // Print summary of results
-        System.out.println("\nValidation Test Summary:");
-        System.out.println("------------------------");
-        
+        // First validate the base valid message works
+        generateDefaultFields();
+        String validIsoMessage = buildIsoMessage();
+        String validResponse = sendIsoMessageToParser(validIsoMessage);
+        if (validResponse.contains("Error")) {
+            throw new AssertionError("Base valid message failed: " + validResponse);
+        }
+        System.out.println("Base valid message test passed successfully");
+
+        // Test each field with invalid data
         int totalTests = 0;
         int passedTests = 0;
-        
-        for (Map.Entry<String, List<TestResult>> fieldEntry : results.entrySet()) {
-            String fieldId = fieldEntry.getKey();
-            List<TestResult> fieldResults = fieldEntry.getValue();
+
+        // Iterate through fields in config
+        for (Iterator<String> it = config.fieldNames(); it.hasNext();) {
+            String fieldId = it.next();
+            JsonNode fieldConfig = config.get(fieldId);
             
-            int fieldPassedTests = (int) fieldResults.stream().filter(r -> r.passed).count();
-            totalTests += fieldResults.size();
-            passedTests += fieldPassedTests;
+            if (!fieldConfig.has("name")) continue;
             
-            System.out.printf("Field %s: %d/%d tests passed%n", 
-                fieldId, fieldPassedTests, fieldResults.size());
+            String fieldName = fieldConfig.get("name").asText();
+            String dataType = fieldConfig.get("type").asText();
             
-            // Print failed test details if any
-            fieldResults.stream()
-                .filter(r -> !r.passed)
-                .forEach(r -> System.out.printf("  Failed: %s - %s%n", 
-                    r.testCategory, r.errorMessage));
+            System.out.println("\nTesting field " + fieldId + " (" + fieldName + ")");
+
+            // Test each invalid case
+            for (String testCategory : TEST_CATEGORIES) {
+                if (fieldConfig.has(testCategory)) {
+                    totalTests++;
+                    String invalidValue = fieldConfig.get(testCategory).asText();
+                    String description = fieldConfig.has(testCategory + "_description") ? 
+                        fieldConfig.get(testCategory + "_description").asText() : testCategory;
+
+                    System.out.println("  Testing " + testCategory + ": " + description);
+
+                    try {
+                        // Create DataTable row for this test
+                        List<Map<String, String>> testRows = new ArrayList<>();
+                        Map<String, String> row = new HashMap<>();
+                        row.put("JSONPATH", fieldName);
+                        row.put("Value", invalidValue);
+                        row.put("DataType", dataType);
+                        testRows.add(row);
+                        
+                        // Apply invalid value using the same method as the update function
+                        applyBddUpdateExtended(fieldName, invalidValue, dataType);
+                        generateDefaultFields();
+                        
+                        String invalidIsoMessage = buildIsoMessage();
+                        String errorResponse = sendIsoMessageToParser(invalidIsoMessage);
+
+                        // Verify error response
+                        if (!errorResponse.contains("Error")) {
+                            System.out.println("  ✗ Test failed: Expected error response but got success");
+                            continue;
+                        }
+
+                        // Restore valid state by regenerating the message
+                        generateDefaultFields();
+                        String restoredIsoMessage = buildIsoMessage();
+                        String restoredResponse = sendIsoMessageToParser(restoredIsoMessage);
+
+                        // Verify restored success
+                        if (restoredResponse.contains("Error")) {
+                            System.out.println("  ✗ Test failed: Could not restore valid state");
+                            continue;
+                        }
+
+                        passedTests++;
+                        System.out.println("  ✓ Test passed");
+
+                    } catch (Exception e) {
+                        System.out.println("  ✗ Test failed: " + e.getMessage());
+                    }
+                }
+            }
         }
-        
-        System.out.printf("%nOverall Results: %d/%d tests passed (%.1f%%)%n",
-            passedTests, totalTests, (passedTests * 100.0 / totalTests));
+
+        // Print summary
+        System.out.println("\nValidation Test Summary:");
+        System.out.println("------------------------");
+        System.out.printf("Total Tests: %d%n", totalTests);
+        System.out.printf("Passed Tests: %d%n", passedTests);
+        System.out.printf("Success Rate: %.1f%%%n", (passedTests * 100.0 / totalTests));
     }
 }
