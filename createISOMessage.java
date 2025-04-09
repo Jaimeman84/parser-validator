@@ -385,34 +385,90 @@ public class CreateIsoMessage  {
      * @return The JSON response from the parser
      */
     public static String sendIsoMessageToParser(String isoMessage) throws IOException {
-        URL url = new URL(PARSER_URL); // Replace with actual URL
+        URL url = new URL(PARSER_URL);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "text/plain");
         connection.setDoOutput(true);
 
+        // Send the request
         try (OutputStream os = connection.getOutputStream()) {
             byte[] input = isoMessage.getBytes("utf-8");
             os.write(input, 0, input.length);
         }
 
-        // handle both success and error response
+        // Get response code
         int responseCode = connection.getResponseCode();
         StringBuilder response = new StringBuilder();
 
+        // Use error stream for 400 responses, input stream for successful responses
         try (BufferedReader br = new BufferedReader(
-                new InputStreamReader(responseCode >= 400
-                        ? connection.getInputStream()
-                        : connection.getInputStream(),
-                        "utf-8"))) {
-
+                new InputStreamReader(responseCode == 400 
+                        ? connection.getErrorStream()
+                        : connection.getInputStream(), "utf-8"))) {
             String responseLine;
             while ((responseLine = br.readLine()) != null) {
                 response.append(responseLine.trim());
             }
         }
 
+        // For 400 responses, try to parse the error message
+        if (responseCode == 400) {
+            try {
+                JsonNode errorNode = objectMapper.readTree(response.toString());
+                if (errorNode.has("message")) {
+                    return "Error: " + errorNode.get("message").asText();
+                } else if (errorNode.has("error")) {
+                    return "Error: " + errorNode.get("error").asText();
+                }
+            } catch (Exception e) {
+                // If can't parse as JSON, return raw response with Error prefix
+                return "Error: " + response.toString();
+            }
+        }
+
         return response.toString();
+    }
+
+    /**
+     * Validates if a response contains an error and extracts the error message
+     * @param response The response from the parser
+     * @return true if the response contains an error, false otherwise
+     */
+    private static boolean isErrorResponse(String response) {
+        if (response.startsWith("Error:")) {
+            return true;
+        }
+        
+        try {
+            JsonNode responseNode = objectMapper.readTree(response);
+            return responseNode.has("error") || responseNode.has("message");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Extracts error message from response
+     * @param response The response from the parser
+     * @return The error message or null if no error
+     */
+    private static String getErrorMessage(String response) {
+        if (response.startsWith("Error:")) {
+            return response.substring("Error:".length()).trim();
+        }
+        
+        try {
+            JsonNode responseNode = objectMapper.readTree(response);
+            if (responseNode.has("message")) {
+                return responseNode.get("message").asText();
+            } else if (responseNode.has("error")) {
+                return responseNode.get("error").asText();
+            }
+        } catch (Exception e) {
+            // If can't parse as JSON, return null
+        }
+        return null;
     }
 
     /**
@@ -613,8 +669,9 @@ public class CreateIsoMessage  {
         System.out.println("Base ISO Message: " + baseMessage);
         System.out.println("Base Response: " + baseResponse);
         
-        if (baseResponse.contains("Error")) {
-            System.out.println("❌ Base message validation failed! Cannot proceed with invalid tests.");
+        if (isErrorResponse(baseResponse)) {
+            String errorMsg = getErrorMessage(baseResponse);
+            System.out.println("❌ Base message validation failed: " + errorMsg);
             return;
         }
         System.out.println("✓ Base message valid, proceeding with invalid tests");
@@ -652,9 +709,11 @@ public class CreateIsoMessage  {
                 String errorResponse = sendIsoMessageToParser(invalidIsoMessage);
                 System.out.println("Parser Response: " + errorResponse);
                 
-                boolean hasError = errorResponse.contains("Error");
+                boolean hasError = isErrorResponse(errorResponse);
+                String errorMsg = hasError ? getErrorMessage(errorResponse) : null;
+                
                 System.out.println("Invalid test result: " + 
-                    (hasError ? "✓ Got expected error" : "✗ Missing expected error"));
+                    (hasError ? "✓ Got expected error: " + errorMsg : "✗ Missing expected error"));
                 
                 if (!hasError) {
                     System.out.println("WARNING: Expected error response for invalid value but got success!");
@@ -673,12 +732,13 @@ public class CreateIsoMessage  {
                 String restoredResponse = sendIsoMessageToParser(restoredIsoMessage);
                 System.out.println("Parser Response: " + restoredResponse);
                 
-                boolean restoredSuccessfully = !restoredResponse.contains("Error");
+                boolean restoredSuccessfully = !isErrorResponse(restoredResponse);
                 System.out.println("Restore test result: " + 
                     (restoredSuccessfully ? "✓ Successfully restored" : "✗ Failed to restore"));
 
                 if (!restoredSuccessfully) {
-                    System.out.println("WARNING: Failed to restore to valid state!");
+                    String restoreErrorMsg = getErrorMessage(restoredResponse);
+                    System.out.println("WARNING: Failed to restore to valid state: " + restoreErrorMsg);
                 }
 
             } catch (Exception e) {
