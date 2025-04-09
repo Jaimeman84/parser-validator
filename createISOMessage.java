@@ -655,12 +655,18 @@ public class CreateIsoMessage  {
         }
 
         public static TestSummary combine(List<TestSummary> summaries) {
+            if (summaries == null || summaries.isEmpty()) {
+                return new TestSummary(0, 0, 0, 0, "NO TESTS RUN");
+            }
+            
             int total = 0, passed = 0, unexpected = 0, expected = 0;
             for (TestSummary summary : summaries) {
-                total += summary.totalTests;
-                passed += summary.passedTests;
-                unexpected += summary.unexpectedPasses;
-                expected += summary.expectedFailures;
+                if (summary != null) {
+                    total += summary.totalTests;
+                    passed += summary.passedTests;
+                    unexpected += summary.unexpectedPasses;
+                    expected += summary.expectedFailures;
+                }
             }
             return new TestSummary(total, passed, unexpected, expected, "ALL FIELDS");
         }
@@ -671,8 +677,10 @@ public class CreateIsoMessage  {
             System.out.println(prefix + "✓ Passed tests: " + passedTests);
             System.out.println(prefix + "✗ Unexpected passes (should have failed): " + unexpectedPasses);
             System.out.println(prefix + "✓ Expected failures (invalid tests): " + expectedFailures);
-            System.out.println(prefix + "✗ Failed tests that should have passed: " + 
-                (totalTests - passedTests - expectedFailures - unexpectedPasses));
+            int failedTests = totalTests - passedTests - expectedFailures - unexpectedPasses;
+            System.out.println(prefix + "✗ Failed tests that should have passed: " + failedTests);
+            System.out.println(prefix + "Success rate: " + 
+                String.format("%.2f%%", ((double)(passedTests + expectedFailures) / totalTests) * 100));
             System.out.println(prefix + "==============================================");
         }
     }

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import static utilities.CreateIsoMessage.*;
+import utilities.CreateIsoMessage.TestSummary;
 
 public class ISO8583MessageGenerator {
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -46,12 +47,23 @@ public class ISO8583MessageGenerator {
         if (response.contains("Error") || !response.contains("200")) {
             throw new AssertionError("Expected 200 success response but got: " + response);
         }
-        System.out.println("✓ Base message validation successful (200 OK)");
+        System.out.println("✓ Base message validation successful (200 OK)\n");
+        
+        System.out.println("Starting validation tests for each field...\n");
         
         // Test negative scenarios for each field using the utility in CreateIsoMessage
         for (Map<String, String> row : rows) {
-            TestSummary result = validateFieldWithInvalidData(row.get("JSONPATH"));
-            allResults.add(result);
+            String jsonPath = row.get("JSONPATH");
+            System.out.println("Testing field with JSONPath: " + jsonPath);
+            TestSummary result = validateFieldWithInvalidData(jsonPath);
+            if (result != null) {
+                allResults.add(result);
+            }
+        }
+
+        if (allResults.isEmpty()) {
+            System.out.println("\nNo test results collected! Please check if tests are running correctly.");
+            return;
         }
 
         // Print overall summary
@@ -60,7 +72,9 @@ public class ISO8583MessageGenerator {
         System.out.println("============================================");
         
         // Print individual field summaries
+        System.out.println("\nResults by Field:");
         for (TestSummary summary : allResults) {
+            System.out.println("\n-----------------------------------------");
             summary.printSummary("  ");
         }
         
@@ -68,6 +82,8 @@ public class ISO8583MessageGenerator {
         System.out.println("\n============================================");
         System.out.println("           FINAL TOTALS                     ");
         System.out.println("============================================");
-        TestSummary.combine(allResults).printSummary("  ");
+        TestSummary combined = TestSummary.combine(allResults);
+        combined.printSummary("  ");
+        System.out.println("\nTest execution completed.");
     }
 }
