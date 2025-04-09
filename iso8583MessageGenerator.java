@@ -14,6 +14,7 @@ public class ISO8583MessageGenerator {
         loadConfig("iso_config_extended_flattened.json");
 
         List<Map<String, String>> rows = dt.asMaps(String.class, String.class);
+        List<TestSummary> allResults = new ArrayList<>();
 
         // Apply all field values from the DataTable
         for (Map<String, String> row : rows) {
@@ -49,7 +50,24 @@ public class ISO8583MessageGenerator {
         
         // Test negative scenarios for each field using the utility in CreateIsoMessage
         for (Map<String, String> row : rows) {
-            validateFieldWithInvalidData(row.get("JSONPATH"));
+            TestSummary result = validateFieldWithInvalidData(row.get("JSONPATH"));
+            allResults.add(result);
         }
+
+        // Print overall summary
+        System.out.println("\n\n============================================");
+        System.out.println("           OVERALL TEST SUMMARY              ");
+        System.out.println("============================================");
+        
+        // Print individual field summaries
+        for (TestSummary summary : allResults) {
+            summary.printSummary("  ");
+        }
+        
+        // Print combined summary
+        System.out.println("\n============================================");
+        System.out.println("           FINAL TOTALS                     ");
+        System.out.println("============================================");
+        TestSummary.combine(allResults).printSummary("  ");
     }
 }

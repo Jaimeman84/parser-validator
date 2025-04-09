@@ -637,27 +637,67 @@ public class CreateIsoMessage  {
     }
 
     /**
+     * Represents a summary of test results
+     */
+    public static class TestSummary {
+        public final int totalTests;
+        public final int passedTests;
+        public final int unexpectedPasses;
+        public final int expectedFailures;
+        public final String fieldTested;
+
+        public TestSummary(int totalTests, int passedTests, int unexpectedPasses, int expectedFailures, String fieldTested) {
+            this.totalTests = totalTests;
+            this.passedTests = passedTests;
+            this.unexpectedPasses = unexpectedPasses;
+            this.expectedFailures = expectedFailures;
+            this.fieldTested = fieldTested;
+        }
+
+        public static TestSummary combine(List<TestSummary> summaries) {
+            int total = 0, passed = 0, unexpected = 0, expected = 0;
+            for (TestSummary summary : summaries) {
+                total += summary.totalTests;
+                passed += summary.passedTests;
+                unexpected += summary.unexpectedPasses;
+                expected += summary.expectedFailures;
+            }
+            return new TestSummary(total, passed, unexpected, expected, "ALL FIELDS");
+        }
+
+        public void printSummary(String prefix) {
+            System.out.println(prefix + "========== Test Summary for " + fieldTested + " ==========");
+            System.out.println(prefix + "Total test scenarios: " + totalTests);
+            System.out.println(prefix + "✓ Passed tests: " + passedTests);
+            System.out.println(prefix + "✗ Unexpected passes (should have failed): " + unexpectedPasses);
+            System.out.println(prefix + "✓ Expected failures (invalid tests): " + expectedFailures);
+            System.out.println(prefix + "✗ Failed tests that should have passed: " + 
+                (totalTests - passedTests - expectedFailures - unexpectedPasses));
+            System.out.println(prefix + "==============================================");
+        }
+    }
+
+    /**
      * Validates a field with all applicable invalid test categories
      * @param jsonPath The name of the field to test
+     * @return Summary of test results
      * @throws IOException if there's an error sending messages
      */
-    public static void validateFieldWithInvalidData(String jsonPath) throws IOException {
+    public static TestSummary validateFieldWithInvalidData(String jsonPath) throws IOException {
         // Test summary counters
         int totalTests = 0;
         int passedTests = 0;
-        int unexpectedPasses = 0;  // When we expected failure but got success
-        int expectedFailures = 0;  // Invalid tests that correctly failed
+        int unexpectedPasses = 0;
+        int expectedFailures = 0;
 
         String fieldNumber = getFieldNumberFromJsonPath(jsonPath);
         if (fieldNumber == null) {
             System.out.println("Warning: No field found for JSONPath " + jsonPath);
-            return;
+            return new TestSummary(0, 0, 0, 0, jsonPath);
         }
 
         JsonNode config = fieldConfig.get(fieldNumber);
         String type = config.get("type").asText();
-        
-        // Get the current valid value before we start testing
         String validValue = config.get("SampleData").asText();
 
         System.out.println("\n========================================");
@@ -681,15 +721,9 @@ public class CreateIsoMessage  {
             System.out.println("❌ Base message validation failed: " + errorMsg);
             unexpectedPasses++; // Base should have passed
             
-            // Print summary for base validation failure
-            System.out.println("\n========== Test Summary ==========");
-            System.out.println("Total test scenarios: " + totalTests);
-            System.out.println("✓ Passed tests: 0");
-            System.out.println("✗ Unexpected passes (should have failed): 0");
-            System.out.println("✓ Expected failures (invalid tests): 0");
-            System.out.println("✗ Failed tests that should have passed: 1");
-            System.out.println("================================");
-            return;
+            TestSummary summary = new TestSummary(totalTests, 0, 0, 0, jsonPath);
+            summary.printSummary("");
+            return summary;
         }
         passedTests++; // Base validation passed
         System.out.println("✓ Base message valid, proceeding with invalid tests");
@@ -777,13 +811,8 @@ public class CreateIsoMessage  {
             System.out.println("-----------------------------------------");
         }
 
-        // Print test summary
-        System.out.println("\n========== Test Summary ==========");
-        System.out.println("Total test scenarios: " + totalTests);
-        System.out.println("✓ Passed tests: " + passedTests);
-        System.out.println("✗ Unexpected passes (should have failed): " + unexpectedPasses);
-        System.out.println("✓ Expected failures (invalid tests): " + expectedFailures);
-        System.out.println("✗ Failed tests that should have passed: " + (totalTests - passedTests - expectedFailures - unexpectedPasses));
-        System.out.println("================================\n");
+        TestSummary summary = new TestSummary(totalTests, passedTests, unexpectedPasses, expectedFailures, jsonPath);
+        summary.printSummary("");
+        return summary;
     }
 }
