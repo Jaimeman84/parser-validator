@@ -149,8 +149,6 @@ public class CreateIsoMessage  {
 
     public static void applyBddUpdateExtended(String jsonPath, String value, String dataType) {
         String fieldNumber = getFieldNumberFromJsonPath(jsonPath);
-        String dataSample = getSampleDataFromJsonPath(jsonPath);
-
         if (fieldNumber == null) {
             System.out.println("Warning: No field found for JSONPath " + jsonPath);
             return;
@@ -160,12 +158,13 @@ public class CreateIsoMessage  {
         int maxLength = config.has("max_length") ? config.get("max_length").asInt() : config.get("length").asInt();
         String type = config.get("type").asText();
 
-        dataSample = generateCustomValue(dataSample, type);
+        // Apply the value directly instead of getting sample data
+        String valueToApply = generateCustomValue(value, type);
 
         // Validate length & type (WARN, not stop execution)
-        if (dataSample.length() > maxLength) {
-            System.out.println("Warning: Value- "+dataSample+"  for field " + fieldNumber + " exceeds max length " + maxLength + " (Truncated)");
-            dataSample = dataSample.substring(0, maxLength);
+        if (valueToApply.length() > maxLength) {
+            System.out.println("Warning: Value- "+valueToApply+"  for field " + fieldNumber + " exceeds max length " + maxLength + " (Truncated)");
+            valueToApply = valueToApply.substring(0, maxLength);
         }
         if (!type.equalsIgnoreCase(dataType)) {
             System.out.println("Warning: Data type mismatch for field " + fieldNumber + ". Expected: " + type + ", Provided: " + dataType);
@@ -173,7 +172,7 @@ public class CreateIsoMessage  {
 
         // Store the manually updated field & add to ISO message
         manuallyUpdatedFields.add(fieldNumber);
-        addField(fieldNumber, dataSample);
+        addField(fieldNumber, valueToApply);
     }
 
     private static void addField(String field, String dataSample) {
@@ -595,13 +594,30 @@ public class CreateIsoMessage  {
 
         JsonNode config = fieldConfig.get(fieldNumber);
         String type = config.get("type").asText();
-        String validValue = getSampleDataFromJsonPath(jsonPath);
+        
+        // Get the current valid value before we start testing
+        String validValue = config.get("SampleData").asText();
 
         System.out.println("\n========================================");
         System.out.println("Testing field " + fieldNumber + " (" + jsonPath + ")");
         System.out.println("Field type: " + type);
         System.out.println("Original valid value: " + validValue);
         System.out.println("========================================");
+
+        // First ensure we have a valid base message
+        applyBddUpdateExtended(jsonPath, validValue, type);
+        generateDefaultFields();
+        String baseMessage = buildIsoMessage();
+        String baseResponse = sendIsoMessageToParser(baseMessage);
+        System.out.println("\nValidating base message:");
+        System.out.println("Base ISO Message: " + baseMessage);
+        System.out.println("Base Response: " + baseResponse);
+        
+        if (baseResponse.contains("Error")) {
+            System.out.println("❌ Base message validation failed! Cannot proceed with invalid tests.");
+            return;
+        }
+        System.out.println("✓ Base message valid, proceeding with invalid tests");
 
         // Test each invalid category
         for (String testCategory : TEST_CATEGORIES) {
@@ -617,12 +633,20 @@ public class CreateIsoMessage  {
             System.out.println("Invalid value to test: " + invalidValue);
 
             try {
-                // Apply invalid value
-                applyBddUpdateExtended(jsonPath, invalidValue, type);
-                String invalidIsoMessage = buildIsoMessage();
+                // Clear previous state
+                resetState();
                 
-                // Log the message being sent
-                System.out.println("\nSending ISO message with invalid value:");
+                // Apply base valid values first
+                applyBddUpdateExtended(jsonPath, validValue, type);
+                generateDefaultFields();
+                
+                // Then override with invalid value
+                System.out.println("\nApplying invalid value to field " + fieldNumber);
+                applyBddUpdateExtended(jsonPath, invalidValue, type);
+                
+                // Build and send message with invalid value
+                String invalidIsoMessage = buildIsoMessage();
+                System.out.println("Sending ISO message with invalid value:");
                 System.out.println("ISO Message: " + invalidIsoMessage);
                 
                 String errorResponse = sendIsoMessageToParser(invalidIsoMessage);
@@ -636,9 +660,11 @@ public class CreateIsoMessage  {
                     System.out.println("WARNING: Expected error response for invalid value but got success!");
                 }
 
-                // Restore valid value
+                // Clear state and restore valid value
                 System.out.println("\nRestoring valid value: " + validValue);
+                resetState();
                 applyBddUpdateExtended(jsonPath, validValue, type);
+                generateDefaultFields();
                 String restoredIsoMessage = buildIsoMessage();
                 
                 System.out.println("Sending restored ISO message:");
@@ -660,7 +686,9 @@ public class CreateIsoMessage  {
                 e.printStackTrace();
                 // Restore valid value even if test fails
                 System.out.println("\nAttempting to restore valid value after error...");
+                resetState();
                 applyBddUpdateExtended(jsonPath, validValue, type);
+                generateDefaultFields();
             }
             System.out.println("-----------------------------------------");
         }
