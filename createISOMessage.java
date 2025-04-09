@@ -642,6 +642,12 @@ public class CreateIsoMessage  {
      * @throws IOException if there's an error sending messages
      */
     public static void validateFieldWithInvalidData(String jsonPath) throws IOException {
+        // Test summary counters
+        int totalTests = 0;
+        int passedTests = 0;
+        int unexpectedPasses = 0;  // When we expected failure but got success
+        int expectedFailures = 0;  // Invalid tests that correctly failed
+
         String fieldNumber = getFieldNumberFromJsonPath(jsonPath);
         if (fieldNumber == null) {
             System.out.println("Warning: No field found for JSONPath " + jsonPath);
@@ -669,17 +675,30 @@ public class CreateIsoMessage  {
         System.out.println("Base ISO Message: " + baseMessage);
         System.out.println("Base Response: " + baseResponse);
         
+        totalTests++; // Count base validation test
         if (isErrorResponse(baseResponse)) {
             String errorMsg = getErrorMessage(baseResponse);
             System.out.println("❌ Base message validation failed: " + errorMsg);
+            unexpectedPasses++; // Base should have passed
+            
+            // Print summary for base validation failure
+            System.out.println("\n========== Test Summary ==========");
+            System.out.println("Total test scenarios: " + totalTests);
+            System.out.println("✓ Passed tests: 0");
+            System.out.println("✗ Unexpected passes (should have failed): 0");
+            System.out.println("✓ Expected failures (invalid tests): 0");
+            System.out.println("✗ Failed tests that should have passed: 1");
+            System.out.println("================================");
             return;
         }
+        passedTests++; // Base validation passed
         System.out.println("✓ Base message valid, proceeding with invalid tests");
 
         // Test each invalid category
         for (String testCategory : TEST_CATEGORIES) {
             if (!config.has(testCategory)) continue;
 
+            totalTests += 2; // Count both invalid test and restoration test
             String invalidValue = config.get(testCategory).asText();
             String description = config.has(testCategory + "_description") ? 
                 config.get(testCategory + "_description").asText() : testCategory;
@@ -715,7 +734,10 @@ public class CreateIsoMessage  {
                 System.out.println("Invalid test result: " + 
                     (hasError ? "✓ Got expected error: " + errorMsg : "✗ Missing expected error"));
                 
-                if (!hasError) {
+                if (hasError) {
+                    expectedFailures++; // Invalid test correctly failed
+                } else {
+                    unexpectedPasses++; // Invalid test unexpectedly passed
                     System.out.println("WARNING: Expected error response for invalid value but got success!");
                 }
 
@@ -736,7 +758,9 @@ public class CreateIsoMessage  {
                 System.out.println("Restore test result: " + 
                     (restoredSuccessfully ? "✓ Successfully restored" : "✗ Failed to restore"));
 
-                if (!restoredSuccessfully) {
+                if (restoredSuccessfully) {
+                    passedTests++; // Restoration test passed
+                } else {
                     String restoreErrorMsg = getErrorMessage(restoredResponse);
                     System.out.println("WARNING: Failed to restore to valid state: " + restoreErrorMsg);
                 }
@@ -752,6 +776,14 @@ public class CreateIsoMessage  {
             }
             System.out.println("-----------------------------------------");
         }
-        System.out.println("========================================\n");
+
+        // Print test summary
+        System.out.println("\n========== Test Summary ==========");
+        System.out.println("Total test scenarios: " + totalTests);
+        System.out.println("✓ Passed tests: " + passedTests);
+        System.out.println("✗ Unexpected passes (should have failed): " + unexpectedPasses);
+        System.out.println("✓ Expected failures (invalid tests): " + expectedFailures);
+        System.out.println("✗ Failed tests that should have passed: " + (totalTests - passedTests - expectedFailures - unexpectedPasses));
+        System.out.println("================================\n");
     }
 }
