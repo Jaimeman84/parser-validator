@@ -695,180 +695,16 @@ public class CreateIsoMessage  {
     }
 
     /**
-     * Validates a field with all applicable invalid test categories
-     * @param jsonPath The name of the field to test
-     * @return Summary of test results
-     * @throws IOException if there's an error sending messages
-     */
-    public static TestSummary validateFieldWithInvalidData(String jsonPath) throws IOException {
-        // Test summary counters
-        int totalTests = 0;
-        int passedTests = 0;
-        int unexpectedPasses = 0;
-        int expectedFailures = 0;
-
-        String fieldNumber = getFieldNumberFromJsonPath(jsonPath);
-        if (fieldNumber == null) {
-            System.out.println("Warning: No field found for JSONPath " + jsonPath);
-            return new TestSummary(0, 0, 0, 0, jsonPath);
-        }
-
-        JsonNode config = fieldConfig.get(fieldNumber);
-        String type = config.get("type").asText();
-        String validValue = config.get("SampleData").asText();
-
-        System.out.println("\n========================================");
-        System.out.println("Testing field " + fieldNumber + " (" + jsonPath + ")");
-        System.out.println("Field type: " + type);
-        System.out.println("Original valid value: " + validValue);
-        System.out.println("========================================");
-
-        // First ensure we have a valid base message
-        resetState();
-        applyBddUpdateExtended(jsonPath, validValue, type);
-        
-        // For fields above 64, ensure primary bitmap is set
-        int fieldNum = Integer.parseInt(fieldNumber);
-        if (fieldNum > 64) {
-            primaryBitmap[0] = true;
-        }
-        
-        generateDefaultFields();
-        String baseMessage = buildIsoMessage();
-        String baseResponse = sendIsoMessageToParser(baseMessage);
-        System.out.println("\nValidating base message:");
-        System.out.println("Base ISO Message: " + baseMessage);
-        System.out.println("Base Response: " + baseResponse);
-        
-        totalTests++; // Count base validation test
-        if (isErrorResponse(baseResponse)) {
-            String errorMsg = getErrorMessage(baseResponse);
-            System.out.println("❌ Base message validation failed: " + errorMsg);
-            return new TestSummary(totalTests, 0, 0, 0, jsonPath);
-        }
-        passedTests++; // Base validation passed
-        System.out.println("✓ Base message valid, proceeding with invalid tests");
-
-        // Test each invalid category
-        for (String testCategory : TEST_CATEGORIES) {
-            if (!config.has(testCategory)) continue;
-
-            totalTests += 2; // Count both invalid test and restoration test
-            String invalidValue = config.get(testCategory).asText();
-            String description = config.has(testCategory + "_description") ? 
-                config.get(testCategory + "_description").asText() : testCategory;
-
-            System.out.println("\n-----------------------------------------");
-            System.out.println("Testing category: " + testCategory);
-            System.out.println("Description: " + description);
-            System.out.println("Invalid value to test: " + invalidValue);
-
-            try {
-                // Clear previous state
-                resetState();
-                
-                // Apply base valid values first
-                applyBddUpdateExtended(jsonPath, validValue, type);
-                
-                // For fields above 64, ensure primary bitmap is set
-                if (fieldNum > 64) {
-                    primaryBitmap[0] = true;
-                }
-                
-                generateDefaultFields();
-                
-                // Then override with invalid value
-                System.out.println("\nApplying invalid value to field " + fieldNumber);
-                applyBddUpdateExtended(jsonPath, invalidValue, type);
-                
-                // Ensure bitmap is still set for fields above 64
-                if (fieldNum > 64) {
-                    primaryBitmap[0] = true;
-                }
-                
-                // Build and send message with invalid value
-                String invalidIsoMessage = buildIsoMessage();
-                System.out.println("Sending ISO message with invalid value:");
-                System.out.println("ISO Message: " + invalidIsoMessage);
-                
-                String errorResponse = sendIsoMessageToParser(invalidIsoMessage);
-                System.out.println("Parser Response: " + errorResponse);
-                
-                boolean hasError = isErrorResponse(errorResponse);
-                String errorMsg = hasError ? getErrorMessage(errorResponse) : null;
-                
-                System.out.println("Invalid test result: " + 
-                    (hasError ? "✓ Got expected error: " + errorMsg : "✗ Missing expected error"));
-                
-                if (hasError) {
-                    expectedFailures++;
-                } else {
-                    unexpectedPasses++;
-                    System.out.println("WARNING: Expected error response for invalid value but got success!");
-                }
-
-                // Clear state and restore valid value
-                System.out.println("\nRestoring valid value: " + validValue);
-                resetState();
-                applyBddUpdateExtended(jsonPath, validValue, type);
-                
-                // Ensure bitmap is set for restoration
-                if (fieldNum > 64) {
-                    primaryBitmap[0] = true;
-                }
-                
-                generateDefaultFields();
-                String restoredIsoMessage = buildIsoMessage();
-                
-                System.out.println("Sending restored ISO message:");
-                System.out.println("ISO Message: " + restoredIsoMessage);
-                
-                String restoredResponse = sendIsoMessageToParser(restoredIsoMessage);
-                System.out.println("Parser Response: " + restoredResponse);
-                
-                boolean restoredSuccessfully = !isErrorResponse(restoredResponse);
-                System.out.println("Restore test result: " + 
-                    (restoredSuccessfully ? "✓ Successfully restored" : "✗ Failed to restore"));
-
-                if (restoredSuccessfully) {
-                    passedTests++;
-                } else {
-                    String restoreErrorMsg = getErrorMessage(restoredResponse);
-                    System.out.println("WARNING: Failed to restore to valid state: " + restoreErrorMsg);
-                }
-
-            } catch (Exception e) {
-                System.out.println("\n✗ Test failed with exception:");
-                e.printStackTrace();
-                // Restore valid value even if test fails
-                System.out.println("\nAttempting to restore valid value after error...");
-                resetState();
-                applyBddUpdateExtended(jsonPath, validValue, type);
-                if (fieldNum > 64) {
-                    primaryBitmap[0] = true;
-                }
-                generateDefaultFields();
-            }
-            System.out.println("-----------------------------------------");
-        }
-
-        TestSummary summary = new TestSummary(totalTests, passedTests, unexpectedPasses, expectedFailures, jsonPath);
-        summary.printSummary("");
-        return summary;
-    }
-
-    /**
-     * Validates if a specific data element is present in the parser response
-     * @param response The JSON response from the parser
+     * Validates if the parser response contains the expected data element ID
+     * @param response The parser response
      * @param fieldNumber The field number to check for
-     * @return true if the field is present, false otherwise
+     * @return true if the field is found in the response
      */
-    private static boolean isFieldPresentInResponse(String response, String fieldNumber) {
+    private static boolean validateFieldInResponse(String response, String fieldNumber) {
         try {
             JsonNode responseNode = objectMapper.readTree(response);
-            if (responseNode.has("dataElements")) {
-                JsonNode dataElements = responseNode.get("dataElements");
-                for (JsonNode element : dataElements) {
+            if (responseNode.isArray()) {
+                for (JsonNode element : responseNode) {
                     if (element.has("dataElementId") && 
                         element.get("dataElementId").asText().equals(fieldNumber)) {
                         return true;
@@ -877,7 +713,7 @@ public class CreateIsoMessage  {
             }
             return false;
         } catch (Exception e) {
-            System.out.println("Warning: Could not parse response to check for field presence: " + e.getMessage());
+            System.out.println("Warning: Could not parse response as JSON: " + e.getMessage());
             return false;
         }
     }
@@ -916,12 +752,19 @@ public class CreateIsoMessage  {
         System.out.println("Base ISO Message: " + baseMessage);
         System.out.println("Base Response: " + baseResponse);
         
-        // Validate field presence in base response
-        if (!isFieldPresentInResponse(baseResponse, fieldNumber)) {
+        // Validate field presence in response
+        if (!validateFieldInResponse(baseResponse, fieldNumber)) {
             System.out.println("❌ Field " + fieldNumber + " not found in parser response for base message");
             return;
         }
         System.out.println("✓ Field " + fieldNumber + " found in parser response");
+        
+        if (isErrorResponse(baseResponse)) {
+            String errorMsg = getErrorMessage(baseResponse);
+            System.out.println("❌ Base message validation failed: " + errorMsg);
+            return;
+        }
+        System.out.println("✓ Base message valid, proceeding with invalid tests");
 
         // Test each invalid category
         for (String testCategory : TEST_CATEGORIES) {
@@ -968,17 +811,14 @@ public class CreateIsoMessage  {
                 System.out.println("Parser Response: " + errorResponse);
                 
                 // For error responses, we expect the field to be mentioned in the error
-                if (isErrorResponse(errorResponse)) {
-                    String errorMsg = getErrorMessage(errorResponse);
-                    if (errorMsg != null && !errorMsg.contains(fieldNumber)) {
-                        System.out.println("Warning: Error message does not mention field " + fieldNumber);
-                    }
-                } else {
-                    // For success responses, validate field presence
-                    if (!isFieldPresentInResponse(errorResponse, fieldNumber)) {
-                        System.out.println("Warning: Field " + fieldNumber + " not found in parser response");
-                    }
+                boolean hasError = isErrorResponse(errorResponse);
+                if (hasError && !errorResponse.contains(fieldNumber)) {
+                    System.out.println("Warning: Error response doesn't mention field " + fieldNumber);
                 }
+                
+                String errorMsg = hasError ? getErrorMessage(errorResponse) : null;
+                System.out.println("Invalid test result: " + 
+                    (hasError ? "✓ Got expected error: " + errorMsg : "✗ Missing expected error"));
 
                 // Clear state and restore valid value
                 System.out.println("\nRestoring valid value: " + validValue);
@@ -1000,8 +840,18 @@ public class CreateIsoMessage  {
                 System.out.println("Parser Response: " + restoredResponse);
                 
                 // Validate field presence in restored response
-                if (!isFieldPresentInResponse(restoredResponse, fieldNumber)) {
-                    System.out.println("Warning: Field " + fieldNumber + " not found in restored message response");
+                boolean fieldPresent = validateFieldInResponse(restoredResponse, fieldNumber);
+                System.out.println(fieldPresent ? 
+                    "✓ Field " + fieldNumber + " found in restored response" :
+                    "❌ Field " + fieldNumber + " not found in restored response");
+                
+                boolean restoredSuccessfully = !isErrorResponse(restoredResponse) && fieldPresent;
+                System.out.println("Restore test result: " + 
+                    (restoredSuccessfully ? "✓ Successfully restored" : "✗ Failed to restore"));
+
+                if (!restoredSuccessfully) {
+                    String restoreErrorMsg = getErrorMessage(restoredResponse);
+                    System.out.println("WARNING: Failed to restore to valid state: " + restoreErrorMsg);
                 }
 
             } catch (Exception e) {
