@@ -966,18 +966,16 @@ public class CreateIsoMessage  {
 
     // Fix for BDD update method
     private String applyBddUpdateToMessage(String baseMessage, String jsonPath, String fieldValue) {
-        // Store the current message state
-        String originalMessage = baseMessage;
-        
         try {
-            // Apply the update using the existing method
-            applyBddUpdateExtended(jsonPath, fieldValue, getFieldType(jsonPath));
+            // Apply the update using the static method (void return type)
+            CreateIsoMessage.applyBddUpdateExtended(jsonPath, fieldValue, getFieldType(jsonPath));
             
-            // Build and return the new message
+            // After applying the update, generate and return the new message
+            generateDefaultFields();
             return buildIsoMessage();
         } catch (Exception e) {
             System.out.println("Failed to apply BDD update: " + e.getMessage());
-            return originalMessage;
+            return baseMessage; // Return original message if update fails
         }
     }
 
