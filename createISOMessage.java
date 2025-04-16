@@ -217,27 +217,35 @@ public class CreateIsoMessage  {
 
         // Ensure MTI is included, default to "0100" if not manually set
         if (!isoFields.containsKey(0)) {
-
             message.append("0100");
         } else {
-            System.out.println(isoFields.get(0));
-
             message.append(isoFields.get(0));
         }
 
-        // Ensure bitmap is only generated if at least one field is present in DE 1-64
-        boolean hasPrimaryFields = hasActivePrimaryFields();
-        if (hasPrimaryFields) {
+        // Check if we need secondary bitmap (any fields 65-128)
+        boolean needsSecondaryBitmap = false;
+        for (int field : isoFields.keySet()) {
+            if (field >= 65 && field <= 128) {
+                needsSecondaryBitmap = true;
+                primaryBitmap[0] = true;  // Set first bit of primary bitmap
+                break;
+            }
+        }
+
+        // Always include primary bitmap if we have any fields or need secondary bitmap
+        if (needsSecondaryBitmap || hasActivePrimaryFields()) {
             message.append(bitmapToHex(primaryBitmap));
         }
 
-        // Only include Secondary Bitmap if DE 65-128 are present
-        if (hasActiveSecondaryFields()) {
+        // Include secondary bitmap if needed
+        if (needsSecondaryBitmap) {
             message.append(bitmapToHex(secondaryBitmap));
         }
 
-        // Append each field value
-        for (int field : isoFields.keySet()) {
+        // Append each field value in order
+        for (int field : new TreeSet<>(isoFields.keySet())) {
+            if (field == 0) continue; // Skip MTI
+            
             JsonNode config = fieldConfig.get(String.valueOf(field));
             if (config == null) continue;
 
@@ -371,8 +379,9 @@ public class CreateIsoMessage  {
     }
 
     private static boolean hasActivePrimaryFields() {
-        for (int i = 0; i < 64; i++) {
-            if (primaryBitmap[i] && isoFields.containsKey(i + 1)) { // Check fields 1-64
+        // Check if any fields 1-64 are present
+        for (int field : isoFields.keySet()) {
+            if (field > 0 && field <= 64) {
                 return true;
             }
         }
