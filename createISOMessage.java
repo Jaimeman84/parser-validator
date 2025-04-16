@@ -715,7 +715,15 @@ public class CreateIsoMessage  {
         System.out.println("========================================");
 
         // First ensure we have a valid base message
+        resetState();
         applyBddUpdateExtended(jsonPath, validValue, type);
+        
+        // For fields above 64, ensure primary bitmap is set
+        int fieldNum = Integer.parseInt(fieldNumber);
+        if (fieldNum > 64) {
+            primaryBitmap[0] = true; // Set first bit of primary bitmap for secondary bitmap presence
+        }
+        
         generateDefaultFields();
         String baseMessage = buildIsoMessage();
         String baseResponse = sendIsoMessageToParser(baseMessage);
@@ -727,11 +735,7 @@ public class CreateIsoMessage  {
         if (isErrorResponse(baseResponse)) {
             String errorMsg = getErrorMessage(baseResponse);
             System.out.println("❌ Base message validation failed: " + errorMsg);
-            unexpectedPasses++; // Base should have passed
-            
-            TestSummary summary = new TestSummary(totalTests, 0, 0, 0, jsonPath);
-            summary.printSummary("");
-            return summary;
+            return new TestSummary(totalTests, 0, 0, 0, jsonPath);
         }
         passedTests++; // Base validation passed
         System.out.println("✓ Base message valid, proceeding with invalid tests");
@@ -756,11 +760,22 @@ public class CreateIsoMessage  {
                 
                 // Apply base valid values first
                 applyBddUpdateExtended(jsonPath, validValue, type);
+                
+                // For fields above 64, ensure primary bitmap is set
+                if (fieldNum > 64) {
+                    primaryBitmap[0] = true;
+                }
+                
                 generateDefaultFields();
                 
                 // Then override with invalid value
                 System.out.println("\nApplying invalid value to field " + fieldNumber);
                 applyBddUpdateExtended(jsonPath, invalidValue, type);
+                
+                // Ensure bitmap is still set for fields above 64
+                if (fieldNum > 64) {
+                    primaryBitmap[0] = true;
+                }
                 
                 // Build and send message with invalid value
                 String invalidIsoMessage = buildIsoMessage();
@@ -777,9 +792,9 @@ public class CreateIsoMessage  {
                     (hasError ? "✓ Got expected error: " + errorMsg : "✗ Missing expected error"));
                 
                 if (hasError) {
-                    expectedFailures++; // Invalid test correctly failed
+                    expectedFailures++;
                 } else {
-                    unexpectedPasses++; // Invalid test unexpectedly passed
+                    unexpectedPasses++;
                     System.out.println("WARNING: Expected error response for invalid value but got success!");
                 }
 
@@ -787,6 +802,12 @@ public class CreateIsoMessage  {
                 System.out.println("\nRestoring valid value: " + validValue);
                 resetState();
                 applyBddUpdateExtended(jsonPath, validValue, type);
+                
+                // Ensure bitmap is set for restoration
+                if (fieldNum > 64) {
+                    primaryBitmap[0] = true;
+                }
+                
                 generateDefaultFields();
                 String restoredIsoMessage = buildIsoMessage();
                 
@@ -801,7 +822,7 @@ public class CreateIsoMessage  {
                     (restoredSuccessfully ? "✓ Successfully restored" : "✗ Failed to restore"));
 
                 if (restoredSuccessfully) {
-                    passedTests++; // Restoration test passed
+                    passedTests++;
                 } else {
                     String restoreErrorMsg = getErrorMessage(restoredResponse);
                     System.out.println("WARNING: Failed to restore to valid state: " + restoreErrorMsg);
@@ -814,6 +835,9 @@ public class CreateIsoMessage  {
                 System.out.println("\nAttempting to restore valid value after error...");
                 resetState();
                 applyBddUpdateExtended(jsonPath, validValue, type);
+                if (fieldNum > 64) {
+                    primaryBitmap[0] = true;
+                }
                 generateDefaultFields();
             }
             System.out.println("-----------------------------------------");
