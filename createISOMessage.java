@@ -823,4 +823,110 @@ public class CreateIsoMessage  {
         summary.printSummary("");
         return summary;
     }
+
+    private boolean isHighNumberedField(int fieldNumber) {
+        return fieldNumber >= 90;
+    }
+
+    private String handleHighNumberedField(String fieldValue, int fieldNumber) {
+        // Special handling for high-numbered fields
+        if (fieldNumber >= 90) {
+            // Ensure proper length indicator for lllvar fields
+            if (fieldValue.length() < 10) { // If less than 10 chars
+                return String.format("00%d%s", fieldValue.length(), fieldValue);
+            } else if (fieldValue.length() < 100) { // If less than 100 chars
+                return String.format("0%d%s", fieldValue.length(), fieldValue);
+            } else {
+                return String.format("%d%s", fieldValue.length(), fieldValue);
+            }
+        }
+        return fieldValue;
+    }
+
+    private String formatFieldValue(String value, JsonNode fieldConfig) {
+        if (fieldConfig == null) return value;
+
+        String format = fieldConfig.path("format").asText("");
+        int maxLength = fieldConfig.path("maxLength").asInt(0);
+        String type = fieldConfig.path("type").asText("");
+
+        // Handle different field formats
+        switch (format.toLowerCase()) {
+            case "lllvar":
+                // Ensure the value doesn't exceed max length
+                if (value.length() > maxLength) {
+                    value = value.substring(0, maxLength);
+                }
+                // Add length prefix
+                return String.format("%03d%s", value.length(), value);
+            case "llvar":
+                if (value.length() > maxLength) {
+                    value = value.substring(0, maxLength);
+                }
+                return String.format("%02d%s", value.length(), value);
+            case "fixed":
+                // Pad or truncate to exact length
+                if (type.equals("n")) {
+                    // Numeric - pad with zeros
+                    return String.format("%-" + maxLength + "s", value).replace(' ', '0');
+                } else {
+                    // Alphanumeric - pad with spaces
+                    return String.format("%-" + maxLength + "s", value);
+                }
+            default:
+                return value;
+        }
+    }
+
+    private String validateFieldWithInvalidData(String jsonPath, String fieldValue) {
+        try {
+            // Extract field number from jsonPath
+            int fieldNumber = extractFieldNumber(jsonPath);
+            System.out.println("Testing field " + fieldNumber + " with value: " + fieldValue);
+            
+            // Get field configuration
+            JsonNode fieldConfig = getFieldConfiguration(String.valueOf(fieldNumber));
+            if (fieldConfig == null) {
+                System.out.println("No configuration found for field " + fieldNumber);
+                return "No configuration found";
+            }
+
+            // Format the field value according to its configuration
+            fieldValue = formatFieldValue(fieldValue, fieldConfig);
+
+            // Handle high-numbered fields specially
+            if (isHighNumberedField(fieldNumber)) {
+                fieldValue = handleHighNumberedField(fieldValue, fieldNumber);
+            }
+
+            // Create base message with valid data
+            String baseMessage = createBaseMessage();
+            if (baseMessage == null || baseMessage.isEmpty()) {
+                System.out.println("Failed to create base message");
+                return "Base message creation failed";
+            }
+
+            // Apply the test value
+            String testMessage = applyBddUpdateExtended(baseMessage, jsonPath, fieldValue);
+            if (testMessage == null || testMessage.isEmpty()) {
+                System.out.println("Failed to apply test value");
+                return "Test value application failed";
+            }
+
+            // Send message to parser
+            String response = sendIsoMessageToParser(testMessage);
+            
+            // Process response
+            if (response.contains("error") || response.contains("Error")) {
+                System.out.println("Validation failed with error: " + response);
+                return "FAIL: " + response;
+            } else {
+                System.out.println("Validation passed");
+                return "PASS";
+            }
+        } catch (Exception e) {
+            System.out.println("Exception during validation: " + e.getMessage());
+            return "ERROR: " + e.getMessage();
+        }
+    }
 }
