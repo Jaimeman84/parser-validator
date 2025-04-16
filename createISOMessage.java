@@ -906,8 +906,8 @@ public class CreateIsoMessage  {
                 return "Base message creation failed";
             }
 
-            // Apply the test value
-            String testMessage = applyBddUpdateExtended(baseMessage, jsonPath, fieldValue);
+            // Apply the test value using the renamed method
+            String testMessage = applyBddUpdateToMessage(baseMessage, jsonPath, fieldValue);
             if (testMessage == null || testMessage.isEmpty()) {
                 System.out.println("Failed to apply test value");
                 return "Test value application failed";
@@ -965,12 +965,12 @@ public class CreateIsoMessage  {
     }
 
     // Fix for BDD update method
-    private String applyBddUpdateExtended(String baseMessage, String jsonPath, String fieldValue) {
+    private String applyBddUpdateToMessage(String baseMessage, String jsonPath, String fieldValue) {
         // Store the current message state
         String originalMessage = baseMessage;
         
         try {
-            // Apply the update
+            // Apply the update using the existing method
             applyBddUpdateExtended(jsonPath, fieldValue, getFieldType(jsonPath));
             
             // Build and return the new message
