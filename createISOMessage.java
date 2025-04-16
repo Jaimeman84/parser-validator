@@ -929,4 +929,71 @@ public class CreateIsoMessage  {
             return "ERROR: " + e.getMessage();
         }
     }
+
+    /**
+     * Extracts the field number from a JSON path
+     * @param jsonPath The JSON path to extract from
+     * @return The field number or -1 if not found
+     */
+    private int extractFieldNumber(String jsonPath) {
+        String fieldNumber = getFieldNumberFromJsonPath(jsonPath);
+        try {
+            return Integer.parseInt(fieldNumber);
+        } catch (NumberFormatException e) {
+            System.out.println("Failed to extract field number from " + jsonPath);
+            return -1;
+        }
+    }
+
+    /**
+     * Gets the configuration for a specific field
+     * @param fieldNumber The field number as a string
+     * @return The field configuration as JsonNode or null if not found
+     */
+    private JsonNode getFieldConfiguration(String fieldNumber) {
+        return fieldConfig.get(fieldNumber);
+    }
+
+    /**
+     * Creates a base message with default values
+     * @return The base ISO message
+     */
+    private String createBaseMessage() {
+        resetState();
+        generateDefaultFields();
+        return buildIsoMessage();
+    }
+
+    // Fix for BDD update method
+    private String applyBddUpdateExtended(String baseMessage, String jsonPath, String fieldValue) {
+        // Store the current message state
+        String originalMessage = baseMessage;
+        
+        try {
+            // Apply the update
+            applyBddUpdateExtended(jsonPath, fieldValue, getFieldType(jsonPath));
+            
+            // Build and return the new message
+            return buildIsoMessage();
+        } catch (Exception e) {
+            System.out.println("Failed to apply BDD update: " + e.getMessage());
+            return originalMessage;
+        }
+    }
+
+    /**
+     * Gets the field type from JSON path
+     * @param jsonPath The JSON path to get type for
+     * @return The field type or "ans" as default
+     */
+    private String getFieldType(String jsonPath) {
+        String fieldNumber = getFieldNumberFromJsonPath(jsonPath);
+        if (fieldNumber != null) {
+            JsonNode config = fieldConfig.get(fieldNumber);
+            if (config != null && config.has("type")) {
+                return config.get("type").asText();
+            }
+        }
+        return "ans"; // Default to alphanumeric string
+    }
 }
