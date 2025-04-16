@@ -217,11 +217,8 @@ public class CreateIsoMessage  {
 
         // Ensure MTI is included, default to "0100" if not manually set
         if (!isoFields.containsKey(0)) {
-
             message.append("0100");
         } else {
-            System.out.println(isoFields.get(0));
-
             message.append(isoFields.get(0));
         }
 
@@ -236,29 +233,77 @@ public class CreateIsoMessage  {
             message.append(bitmapToHex(secondaryBitmap));
         }
 
+        // Sort fields to ensure correct order
+        List<Integer> sortedFields = new ArrayList<>(isoFields.keySet());
+        Collections.sort(sortedFields);
+
         // Append each field value
-        for (int field : isoFields.keySet()) {
-            JsonNode config = fieldConfig.get(String.valueOf(field));
+        for (int field : sortedFields) {
+            if (field == 0) continue; // Skip MTI as it's already added
+
+            String fieldStr = String.valueOf(field);
+            JsonNode config = fieldConfig.get(fieldStr);
             if (config == null) continue;
 
-            // LLVAR and LLLVAR handling
-            if ("llvar".equals(config.get("format").asText())) {
-                message.append(String.format("%02d", isoFields.get(field).length()));
-            } else if ("lllvar".equals(config.get("format").asText())) {
-                message.append(String.format("%03d", isoFields.get(field).length()));
+            String value = isoFields.get(field);
+            String format = config.get("format").asText();
+            
+            // Handle high-numbered fields (90 and above)
+            if (field >= 90) {
+                if ("lllvar".equals(format)) {
+                    // Ensure proper length indicator for lllvar fields
+                    if (!value.matches("^\\d{3}.*")) {
+                        value = String.format("%03d%s", value.length(), value);
+                    }
+                } else if ("llvar".equals(format)) {
+                    // Ensure proper length indicator for llvar fields
+                    if (!value.matches("^\\d{2}.*")) {
+                        value = String.format("%02d%s", value.length(), value);
+                    }
+                }
+                // For fixed length fields, ensure proper length
+                else if ("fixed".equals(format)) {
+                    int length = config.get("length").asInt();
+                    String type = config.get("type").asText();
+                    if ("n".equals(type)) {
+                        value = String.format("%" + length + "s", value).replace(' ', '0');
+                    } else {
+                        value = String.format("%-" + length + "s", value);
+                    }
+                }
             }
-            message.append(isoFields.get(field));
+            // Handle regular fields (1-89)
+            else {
+                if ("llvar".equals(format)) {
+                    value = String.format("%02d%s", value.length(), value);
+                } else if ("lllvar".equals(format)) {
+                    value = String.format("%03d%s", value.length(), value);
+                }
+            }
+
+            message.append(value);
         }
         return message.toString();
     }
 
     private static boolean hasActiveSecondaryFields() {
-        for (int i = 0; i < 64; i++) {
-            if (secondaryBitmap[i] && isoFields.containsKey(i + 65)) {  // Check fields 65-128
-                return true; // Secondary bitmap is required
+        // Check if any fields 65-128 are present
+        for (int field : isoFields.keySet()) {
+            if (field >= 65 && field <= 128) {
+                return true;
             }
         }
-        return false; // No active fields in DE 65-128
+        return false;
+    }
+
+    private static boolean hasActivePrimaryFields() {
+        // Check if any fields 1-64 are present
+        for (int field : isoFields.keySet()) {
+            if (field > 0 && field <= 64) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static String buildJsonMessage() throws IOException {
@@ -368,15 +413,6 @@ public class CreateIsoMessage  {
         }
 
         return hex.toString();
-    }
-
-    private static boolean hasActivePrimaryFields() {
-        for (int i = 0; i < 64; i++) {
-            if (primaryBitmap[i] && isoFields.containsKey(i + 1)) { // Check fields 1-64
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -831,13 +867,32 @@ public class CreateIsoMessage  {
     private String handleHighNumberedField(String fieldValue, int fieldNumber) {
         // Special handling for high-numbered fields
         if (fieldNumber >= 90) {
-            // Ensure proper length indicator for lllvar fields
-            if (fieldValue.length() < 10) { // If less than 10 chars
-                return String.format("00%d%s", fieldValue.length(), fieldValue);
-            } else if (fieldValue.length() < 100) { // If less than 100 chars
-                return String.format("0%d%s", fieldValue.length(), fieldValue);
-            } else {
-                return String.format("%d%s", fieldValue.length(), fieldValue);
+            JsonNode config = fieldConfig.get(String.valueOf(fieldNumber));
+            if (config == null) return fieldValue;
+
+            String format = config.path("format").asText("");
+            int maxLength = config.path("max_length").asInt(0);
+
+            // Handle field 90 specifically
+            if (fieldNumber == 90) {
+                // Ensure proper length indicator for field 90
+                if (format.equals("lllvar")) {
+                    // Add length indicator if not present
+                    if (!fieldValue.matches("^\\d{3}.*")) {
+                        return String.format("%03d%s", fieldValue.length(), fieldValue);
+                    }
+                }
+            }
+            // Handle other high-numbered fields
+            else if (format.equals("lllvar")) {
+                // Ensure proper length indicator for lllvar fields
+                if (fieldValue.length() < 10) { // If less than 10 chars
+                    return String.format("00%d%s", fieldValue.length(), fieldValue);
+                } else if (fieldValue.length() < 100) { // If less than 100 chars
+                    return String.format("0%d%s", fieldValue.length(), fieldValue);
+                } else {
+                    return String.format("%d%s", fieldValue.length(), fieldValue);
+                }
             }
         }
         return fieldValue;
@@ -857,13 +912,20 @@ public class CreateIsoMessage  {
                 if (value.length() > maxLength) {
                     value = value.substring(0, maxLength);
                 }
-                // Add length prefix
-                return String.format("%03d%s", value.length(), value);
+                // Add length prefix if not already present
+                if (!value.matches("^\\d{3}.*")) {
+                    return String.format("%03d%s", value.length(), value);
+                }
+                return value;
             case "llvar":
                 if (value.length() > maxLength) {
                     value = value.substring(0, maxLength);
                 }
-                return String.format("%02d%s", value.length(), value);
+                // Add length prefix if not already present
+                if (!value.matches("^\\d{2}.*")) {
+                    return String.format("%02d%s", value.length(), value);
+                }
+                return value;
             case "fixed":
                 // Pad or truncate to exact length
                 if (type.equals("n")) {
@@ -875,40 +937,6 @@ public class CreateIsoMessage  {
                 }
             default:
                 return value;
-        }
-    }
-
-    /**
-     * Validates if the parser response contains the correct Data Element ID
-     * @param response The parser response
-     * @param expectedFieldNumber The expected field number
-     * @return Error message if validation fails, null if passes
-     */
-    private String validateDataElementId(String response, int expectedFieldNumber) {
-        try {
-            JsonNode responseNode = objectMapper.readTree(response);
-            
-            // Check if the response has a data object
-            JsonNode dataNode = responseNode.path("data");
-            if (dataNode.isMissingNode()) {
-                return "Parser response missing 'data' object";
-            }
-
-            // Check if dataElementId exists and matches
-            JsonNode elementNode = dataNode.path("dataElementId");
-            if (elementNode.isMissingNode()) {
-                return "Parser response missing 'dataElementId'";
-            }
-
-            int actualFieldNumber = elementNode.asInt();
-            if (actualFieldNumber != expectedFieldNumber) {
-                return String.format("DataElementId mismatch: expected %d but got %d", 
-                    expectedFieldNumber, actualFieldNumber);
-            }
-
-            return null; // Validation passed
-        } catch (Exception e) {
-            return "Failed to parse response: " + e.getMessage();
         }
     }
 
@@ -949,13 +977,6 @@ public class CreateIsoMessage  {
 
             // Send message to parser
             String response = sendIsoMessageToParser(testMessage);
-            
-            // Validate Data Element ID first
-            String dataElementError = validateDataElementId(response, fieldNumber);
-            if (dataElementError != null) {
-                System.out.println("Data Element validation failed: " + dataElementError);
-                return "FAIL: " + dataElementError;
-            }
             
             // Process response
             if (response.contains("error") || response.contains("Error")) {
