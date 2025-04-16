@@ -878,6 +878,40 @@ public class CreateIsoMessage  {
         }
     }
 
+    /**
+     * Validates if the parser response contains the correct Data Element ID
+     * @param response The parser response
+     * @param expectedFieldNumber The expected field number
+     * @return Error message if validation fails, null if passes
+     */
+    private String validateDataElementId(String response, int expectedFieldNumber) {
+        try {
+            JsonNode responseNode = objectMapper.readTree(response);
+            
+            // Check if the response has a data object
+            JsonNode dataNode = responseNode.path("data");
+            if (dataNode.isMissingNode()) {
+                return "Parser response missing 'data' object";
+            }
+
+            // Check if dataElementId exists and matches
+            JsonNode elementNode = dataNode.path("dataElementId");
+            if (elementNode.isMissingNode()) {
+                return "Parser response missing 'dataElementId'";
+            }
+
+            int actualFieldNumber = elementNode.asInt();
+            if (actualFieldNumber != expectedFieldNumber) {
+                return String.format("DataElementId mismatch: expected %d but got %d", 
+                    expectedFieldNumber, actualFieldNumber);
+            }
+
+            return null; // Validation passed
+        } catch (Exception e) {
+            return "Failed to parse response: " + e.getMessage();
+        }
+    }
+
     private String validateFieldWithInvalidData(String jsonPath, String fieldValue) {
         try {
             // Extract field number from jsonPath
@@ -915,6 +949,13 @@ public class CreateIsoMessage  {
 
             // Send message to parser
             String response = sendIsoMessageToParser(testMessage);
+            
+            // Validate Data Element ID first
+            String dataElementError = validateDataElementId(response, fieldNumber);
+            if (dataElementError != null) {
+                System.out.println("Data Element validation failed: " + dataElementError);
+                return "FAIL: " + dataElementError;
+            }
             
             // Process response
             if (response.contains("error") || response.contains("Error")) {
