@@ -198,12 +198,7 @@ public class CreateIsoMessage  {
 
         // Store field value and update bitmap
         isoFields.put(fieldNumber, dataSample);
-        if (fieldNumber <= 64) {
-            primaryBitmap[fieldNumber - 1] = true;
-        } else {
-            secondaryBitmap[fieldNumber - 65] = true;
-            primaryBitmap[0] = true; // Ensure secondary bitmap is marked active
-        }
+        updateBitmapForField(fieldNumber);
     }
 
     private static String generateRandomValue(JsonNode config) {
@@ -409,10 +404,41 @@ public class CreateIsoMessage  {
         // Convert binary string to hex
         StringBuilder hex = new StringBuilder();
         for (int i = 0; i < 64; i += 4) {
-            hex.append(Integer.toHexString(Integer.parseInt(binary.substring(i, i + 4), 2)).toUpperCase());
+            String fourBits = binary.substring(i, i + 4);
+            hex.append(Integer.toHexString(Integer.parseInt(fourBits, 2)).toUpperCase());
         }
 
         return hex.toString();
+    }
+
+    private static boolean[] hexToBitmap(String hexString) {
+        boolean[] bitmap = new boolean[64];
+        String binaryStr = "";
+        
+        // Convert each hex character to 4 binary digits
+        for (char hexChar : hexString.toCharArray()) {
+            // Parse single hex digit and convert to 4-digit binary
+            String fourBits = String.format("%4s", 
+                Integer.toBinaryString(Integer.parseInt(String.valueOf(hexChar), 16)))
+                .replace(' ', '0');
+            binaryStr += fourBits;
+        }
+
+        // Convert binary string to boolean array
+        for (int i = 0; i < 64 && i < binaryStr.length(); i++) {
+            bitmap[i] = binaryStr.charAt(i) == '1';
+        }
+
+        return bitmap;
+    }
+
+    private static void updateBitmapForField(int fieldNumber) {
+        if (fieldNumber <= 64) {
+            primaryBitmap[fieldNumber - 1] = true;
+        } else if (fieldNumber <= 128) {
+            primaryBitmap[0] = true; // Set first bit to indicate secondary bitmap
+            secondaryBitmap[fieldNumber - 65] = true;
+        }
     }
 
     /**
